@@ -1571,7 +1571,7 @@ export function updateLayoutEntry(
 	if (idx >= 0) {
 		lines[idx] = newLine;
 	} else {
-		// lines.push(newLine);
+		lines.push(newLine);
 	}
 	return lines.filter(l => l.trim() !== '').join('\n');
 }

@@ -9,6 +9,8 @@
 	import { formatDate } from "$lib/utils/status";
 	import * as te from "$lib/telemetry-events";
 	import { listPublications } from "$lib/publish/client";
+	import { toast } from "svelte-sonner";
+	import * as AlertDialog from "$lib/components/ui/alert-dialog";
 
 	// Trigger & infra detection (same as projects page)
 	const triggerNodeTypes = new Set(ALL_NODES.filter(n => n.features?.isTrigger).map(n => n.type));
@@ -210,6 +212,34 @@
 	let sendAfterRecording = $state(false);
 	let textBeforeRecording = '';
 	let lastAppendedTranscript = '';  // track what we already appended to avoid re-adding
+
+	let projectPendingDelete = $state<ProjectDefinition | null>(null);
+	let deleteInFlight = $state(false);
+
+	function requestDeleteProject(project: ProjectDefinition, event: MouseEvent) {
+		event.stopPropagation();
+		event.preventDefault();
+		projectPendingDelete = project;
+	}
+
+	async function confirmDeleteProject() {
+		if (!projectPendingDelete || deleteInFlight) return;
+		deleteInFlight = true;
+		const target = projectPendingDelete;
+		const result = await projects.remove(target.id);
+		deleteInFlight = false;
+		if (result.ok) {
+			toast.success(`Deleted "${target.name}"`);
+			projectPendingDelete = null;
+			return;
+		}
+		if (result.status === 409) {
+			toast.error('Cannot delete project', { description: result.message });
+		} else {
+			toast.error('Failed to delete project', { description: result.message });
+		}
+		projectPendingDelete = null;
+	}
 
 	async function createBlankProject() {
 		const created = await projects.add({ name: 'Untitled project' });
@@ -522,9 +552,10 @@
 					{@const accent = projectAccentColor(project)}
 					{@const infraStatus = rollupInfraStatus(project.id)}
 					{@const triggerActive = hasTriggers(project) && isProjectActive(project.id)}
+					<div class="group relative">
 					<button
 						onclick={() => goto(`/projects/${project.id}`)}
-						class="text-left rounded-xl overflow-hidden transition-all duration-150 cursor-pointer"
+						class="text-left rounded-xl overflow-hidden transition-all duration-150 cursor-pointer w-full"
 						style="background: white; border: 1px solid #e4e4e7; box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.03); min-height: 140px; display: flex; flex-direction: column;"
 						onmouseenter={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = accent; el.style.boxShadow = `0 0 0 1px ${accent}40, 0 4px 16px rgba(0,0,0,0.1)`; }}
 						onmouseleave={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = '#e4e4e7'; el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.03)'; }}
@@ -593,6 +624,16 @@
 							</div>
 						</div>
 					</button>
+					<button
+						type="button"
+						aria-label="Delete project"
+						title="Delete project"
+						onclick={(e) => requestDeleteProject(project, e)}
+						class="absolute top-2 right-2 p-1.5 rounded-md bg-white/90 backdrop-blur-sm border border-zinc-200 text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-all duration-150 shadow-sm"
+					>
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+					</button>
+					</div>
 				{/each}
 			</div>
 
@@ -720,3 +761,29 @@
 		{/if}
 	</div>
 </div>
+
+<AlertDialog.Root
+	open={projectPendingDelete !== null}
+	onOpenChange={(open) => { if (!open) projectPendingDelete = null; }}
+>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Delete project</AlertDialog.Title>
+			<AlertDialog.Description>
+				{#if projectPendingDelete}
+					This will permanently delete <span class="font-semibold text-zinc-900">{projectPendingDelete.name}</span>. This action cannot be undone.
+				{/if}
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel disabled={deleteInFlight}>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Action
+				disabled={deleteInFlight}
+				onclick={confirmDeleteProject}
+				class="bg-red-600 text-white hover:bg-red-700"
+			>
+				{deleteInFlight ? 'Deleting…' : 'Delete'}
+			</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>

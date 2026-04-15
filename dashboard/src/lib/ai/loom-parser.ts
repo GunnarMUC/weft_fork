@@ -352,9 +352,20 @@ function permissiveReflow(loom: string): string {
 
 	const lines = out.split('\n');
 	const merged: string[] = [];
+	let inTripleBacktickBlock = false;
 	for (let j = 0; j < lines.length; j++) {
 		const line = lines[j];
 		const trimmed = line.trim();
+		// Track triple-backtick state so we never touch lines inside a
+		// multi-line value. Each ``` on a line toggles the state, so lines
+		// with an odd count flip it.
+		const wasInBlock = inTripleBacktickBlock;
+		const tickCount = (line.match(/```/g) || []).length;
+		if (tickCount % 2 === 1) inTripleBacktickBlock = !inTripleBacktickBlock;
+		if (wasInBlock || inTripleBacktickBlock) {
+			merged.push(line);
+			continue;
+		}
 		if (!trimmed) {
 			merged.push(line);
 			continue;

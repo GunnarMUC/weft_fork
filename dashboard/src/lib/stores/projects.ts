@@ -68,22 +68,28 @@ function createProjectStore() {
 		}
 	}
 
-	async function removeProject(id: string): Promise<boolean> {
-		if (!browser) return false;
+	async function removeProject(id: string): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
+		if (!browser) return { ok: false, status: 0, message: 'Not in browser' };
 		try {
 			const response = await authFetch(`${baseUrl}/${id}`, {
 				method: 'DELETE',
 				credentials: 'include',
 			});
 			if (!response.ok) {
-				throw new Error(`Failed to delete project: ${response.statusText}`);
+				let message = response.statusText;
+				try {
+					const body = await response.json();
+					if (body?.error) message = body.error;
+				} catch { /* response had no JSON body */ }
+				return { ok: false, status: response.status, message };
 			}
 			update((items) => items.filter((w) => w.id !== id));
-			return true;
+			return { ok: true };
 		} catch (e) {
 			console.error("Failed to delete project:", e);
-			error.set(e instanceof Error ? e.message : "Unknown error");
-			return false;
+			const message = e instanceof Error ? e.message : "Unknown error";
+			error.set(message);
+			return { ok: false, status: 0, message };
 		}
 	}
 

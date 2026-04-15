@@ -1,6 +1,6 @@
 # Klinik Beschwerdebrief-Analyzer
-# Produktionsreifer, lokaler Workflow mit Mistral, Qwen und zentralem Human-in-the-Loop
-# Weft-Innovation: First-class Primitives, Compiler-Validierung, Graph, durable HiTL
+# Produktionsreifer, lokaler Workflow mit Mistral (JSON-strukturiert), Qwen und zentralem Human-in-the-Loop
+# Weft-Innovation: First-class Primitives, Compiler-Validierung, Graph, durable HiTL, Audit-fähigkeit
 
 complaint = Text {
   label: "Vollständiger Beschwerdebrief"
@@ -12,7 +12,7 @@ mistral_config = LlmConfig {
   label: "Mistral 7B – Analyse"
   endpoint: "http://localhost:11434/v1"
   model: "mistral:7b"
-  systemPrompt: "Du bist ein neutraler Klinik-Qualitätsmanager. Analysiere den Beschwerdebrief streng faktenbasiert. Antworte AUSSCHLIESSLICH mit validem JSON."
+  systemPrompt: "Du bist ein neutraler Klinik-Qualitätsmanager. Analysiere den Beschwerdebrief streng faktenbasiert. Antworte AUSSCHLIESSLICH mit validem JSON-Objekt im folgenden Format: {\"severity\": 5, \"categories\": [\"Kommunikation\"], \"summary\": \"Kurze faktenbasierte Zusammenfassung.\", \"risks\": [\"Hohes Risiko\"], \"key_points\": [\"Punkt 1\", \"Punkt 2\"]}"
   temperature: 0.3
   jsonMode: true
 }
@@ -21,7 +21,7 @@ qwen_config = LlmConfig {
   label: "Qwen – Antwortvorschlag"
   endpoint: "http://localhost:11434/v1"
   model: "qwen:7b"
-  systemPrompt: "Du bist ein empathischer, rechtssicherer Klinik-Mitarbeiter. Erstelle einen professionellen, beruhigenden Antwortentwurf. Schlage konkrete nächste Schritte vor."
+  systemPrompt: "Du bist ein empathischer und rechtssicherer Klinik-Mitarbeiter. Erstelle einen professionellen, beruhigenden und höflichen Antwortentwurf. Schlage konkrete nächste Schritte vor."
   temperature: 0.7
 }
 
@@ -36,7 +36,7 @@ analysis.config = mistral_config
 response_gen = LlmInference -> (response: String) {
   label: "Professioneller Antwortentwurf (Qwen)"
 }
-response_gen.prompt = "Beschwerde:\n" + complaint.value + "\n\nAnalyse:\n" + analysis.response
+response_gen.prompt = "Beschwerde:\n" + complaint.value + "\n\nStrukturierte Analyse (Mistral):\n" + analysis.response + "\n\nVerwende diese Analyse für einen kohärenten, faktenbasierten Entwurf."
 response_gen.config = qwen_config
 
 # Zentraler, unverzichtbarer Human-in-the-Loop für Klinik-Compliance
@@ -52,7 +52,7 @@ review = HumanQuery -> (approved: Bool, feedback: String) {
 }
 review.data_to_review = "Beschwerde:\n" + complaint.value + "\n\nAnalyse:\n" + analysis.response + "\n\nVorschlag:\n" + response_gen.response
 
-# Finale Ausgabe (später leicht um PostgresInsert oder Email erweiterbar)
+# Finale Ausgabe – immer audit-fähig mit vollständigem Review-Status
 output = Debug {
   label: "Finales Ergebnis (Audit-fähig)"
 }

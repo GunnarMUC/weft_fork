@@ -9,12 +9,10 @@ echo ""
 
 # 1. Ollama prüfen (zentral für lokale LLMs)
 if ! curl -s --max-time 3 http://localhost:11434/v1/models > /dev/null; then
-    echo "❌ Ollama läuft nicht oder ist nicht erreichbar auf http://localhost:11434"
-    echo "   Starte Ollama und lade mistral:7b + qwen:7b (oder passende Tags)."
-    echo "   Danach ./start.sh erneut ausführen."
+    echo "❌ Ollama nicht erreichbar (localhost:11434). Starte Ollama und lade Modelle."
     exit 1
 fi
-echo "✅ Ollama erkannt – lokale Modelle verfügbar (Mistral für Analyse, Qwen für Vorschläge)"
+echo "✅ Ollama erkannt – mistral:7b (Analyse), qwen:7b (Vorschläge)"
 
 # 2. .env sicherstellen (angepasst für lokalen Betrieb)
 if [ ! -f .env ]; then

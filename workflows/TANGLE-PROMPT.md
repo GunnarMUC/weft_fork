@@ -22,11 +22,12 @@ Ablauf (genaue Reihenfolge):
    - Formular-Titel: "Beschwerde-Review freigeben"
    - Felder: Textarea "Dein Feedback oder gewünschte Änderungen" (key: feedback), Checkbox "Antwort freigeben" (key: approved, default: false)
    - Im Review-Fenster: Vollständige Analyse + Antwortvorschlag anzeigen
-4. Gate oder Conditional für approved-Status
-5. Bei Freigabe: PostgresInsert oder Storage-Node zur Archivierung aller Daten (original, analysis, suggested_reply, feedback, approved, timestamp)
-6. Abschließender Debug-Node "Finales Ergebnis & Audit" mit allen Daten
+4. Abschließender Debug-Node "Finales Ergebnis & Audit" mit allen Daten (inkl. approved-Status für vollständige Auditierbarkeit)
+Optional: Gate oder Conditional + PostgresInsert nur bei approved=true für Archivierung.
 
-Alle Labels, Kommentare und Beschreibungen auf Deutsch. Verwende aussagekräftige Node-Namen. Der Workflow muss durable sein (Rest ate), typsicher und später einfach um E-Mail-Versand (communication/email) oder PDF erweiterbar sein. Generiere sauberen, gut kommentierten Weft-Code mit Fokus auf Auditierbarkeit und Klinik-Compliance. Human-in-the-Loop darf nicht optional sein.
+Alle Labels, Kommentare und Beschreibungen auf Deutsch. Verwende aussagekräftige Node-Namen. Der Workflow muss durable sein (Restate), typsicher und erweiterbar um E-Mail-Versand (communication/email) oder PDF sein. Generiere sauberen, gut kommentierten Weft-Code mit Fokus auf Auditierbarkeit und Klinik-Compliance. Human-in-the-Loop darf nicht optional sein.
+
+Verwende nur existierende Nodes aus dem aktuellen Katalog (LlmConfig, LlmInference, HumanQuery, Debug, Gate, Conditional, PostgresInsert).
 ```
 
 **Vorteil von Tangle + Weft:** Du beschreibst den Workflow in natürlicher Sprache – der AI Builder generiert validen, typsicheren Code + Graphen sofort. Kein manuelles Syntax-Lernen nötig.

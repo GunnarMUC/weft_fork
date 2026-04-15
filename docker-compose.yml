@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: weft-klinik-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: weft
+      POSTGRES_PASSWORD: weft_local
+      POSTGRES_DB: klinik_beschwerden
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U weft -d klinik_beschwerden"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
+
+# Hinweis: Dieses Compose ist auf das Klinik-Beschwerde-Tool zugeschnitten.
+# Der init-db.sh wird vom dev.sh server aufgerufen und legt Tabellen an (z.B. complaint_archives).

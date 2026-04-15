@@ -1,0 +1,65 @@
+# Klinik Beschwerdebrief-Analyzer
+# Produktionsreifer, lokaler Workflow mit Mistral, Qwen und zentralem Human-in-the-Loop
+# Weft-Innovation: First-class Primitives, Compiler-Validierung, Graph, durable HiTL
+
+complaint = Text {
+  label: "Vollständiger Beschwerdebrief"
+  value: ""
+}
+
+# Lokale LLM-Konfiguration (Ollama – kein Cloud-Key nötig)
+mistral_config = LlmConfig {
+  label: "Mistral 7B – Analyse"
+  endpoint: "http://localhost:11434/v1"
+  model: "mistral:7b"
+  systemPrompt: "Du bist ein neutraler Klinik-Qualitätsmanager. Analysiere den Beschwerdebrief streng faktenbasiert. Antworte AUSSCHLIESSLICH mit validem JSON."
+  temperature: 0.3
+  jsonMode: true
+}
+
+qwen_config = LlmConfig {
+  label: "Qwen – Antwortvorschlag"
+  endpoint: "http://localhost:11434/v1"
+  model: "qwen:7b"
+  systemPrompt: "Du bist ein empathischer, rechtssicherer Klinik-Mitarbeiter. Erstelle einen professionellen, beruhigenden Antwortentwurf. Schlage konkrete nächste Schritte vor."
+  temperature: 0.7
+}
+
+# Analyse
+analysis = LlmInference -> (response: String) {
+  label: "Schweregrad & Inhaltsanalyse (Mistral)"
+}
+analysis.prompt = complaint.value
+analysis.config = mistral_config
+
+# Antwortvorschlag
+response_gen = LlmInference -> (response: String) {
+  label: "Professioneller Antwortentwurf (Qwen)"
+}
+response_gen.prompt = "Beschwerde:\n" + complaint.value + "\n\nAnalyse:\n" + analysis.response
+response_gen.config = qwen_config
+
+# Zentraler, unverzichtbarer Human-in-the-Loop für Klinik-Compliance
+review = HumanQuery -> (approved: Bool, feedback: String) {
+  label: "Mitarbeiter-Review & Freigabe"
+  form: {
+    title: "Beschwerde-Review freigeben",
+    fields: [
+      { type: "textarea", label: "Dein Feedback oder gewünschte Änderungen", key: "feedback" },
+      { type: "checkbox", label: "Antwort freigeben", key: "approved", default: false }
+    ]
+  }
+}
+review.data_to_review = "Beschwerde:\n" + complaint.value + "\n\nAnalyse:\n" + analysis.response + "\n\nVorschlag:\n" + response_gen.response
+
+# Finale Ausgabe (später leicht um PostgresInsert oder Email erweiterbar)
+output = Debug {
+  label: "Finales Ergebnis (Audit-fähig)"
+}
+output.data = {
+  original_complaint: complaint.value,
+  analysis: analysis.response,
+  suggested_reply: response_gen.response,
+  review_feedback: review.feedback,
+  approved: review.approved
+}
